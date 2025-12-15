@@ -21,6 +21,7 @@
     "@tanstack/router-plugin": "^1.121.2",
     "@tensorflow/tfjs": "^4.22.0",
     "firebase": "^12.3.0",
+    "lucide-react": "^0.561.0",
     "papaparse": "^5.5.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

@@ -1,8 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect } from 'react'
 import { 
-  Trash2, Edit2, Save, X, Database, AlertCircle, CheckCircle2, 
-  ChevronRight, AlertTriangle, Search, ChevronDown, Check
+  Trash2, Edit2, Save, X, Database, AlertCircle, CheckCircle2, Search, ChevronDown, Check
 } from 'lucide-react'
 
 // --- YOUR EXISTING IMPORTS ---
