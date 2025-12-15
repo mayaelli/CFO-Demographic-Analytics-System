@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useAuth } from '../context/authContext'
 import {
-   BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer
+   BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer
 } from 'recharts'
 import { 
   Users, TrendingUp, Calendar, ArrowUpRight, BarChart3, 

@@ -11,7 +11,7 @@ import {
   GraduationCap,
   Heart,
   MapPin
-} from 'lucide-react'
+} from 'lucide-react' //fixed the invisible typo
 
 const Landing = forwardRef<HTMLDivElement>((_props, ref) => {
   return (
