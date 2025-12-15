@@ -1,0 +1,576 @@
+import { createFileRoute } from '@tanstack/react-router'
+import { useState, useMemo, useEffect, useRef} from 'react'
+import { 
+  Users, TrendingUp, Calendar, ArrowUpRight, BarChart3, 
+  Table as TableIcon, UploadCloud, LineChart, Save, X, Edit2, Trash2, AlertCircle, CheckCircle2, FileUp, FileSpreadsheet
+} from 'lucide-react'
+
+// Components
+import AgeCharts from '../components/charts/ageCharts'
+import { useParseAgeData } from '../hooks/useParseAgeData'
+
+import { getAllAgeData, updateAgeData, deleteAgeData } from '../api/ageService'
+import { COLUMN_ORDERS } from '../utils/columnOrders'
+
+import { useAuth } from '../context/authContext'
+
+
+// --- PLACEHOLDER COMPONENTS (Move these to separate files later) ---
+const AgeDataTable = () => {
+  const { isAuthenticated } = useAuth()
+  const [data, setData] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [editingYear, setEditingYear] = useState<number | null>(null)
+  const [editFormData, setEditFormData] = useState<any | null>(null)
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  // Load data specifically for AGE
+  const loadData = async () => {
+    setLoading(true)
+    try {
+      const result = await getAllAgeData()
+      // Sort by Year descending by default
+      setData(result.sort((a: any, b: any) => b.Year - a.Year))
+    } catch (error: any) {
+      setMessage({ type: 'error', text: 'Failed to load table data.' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Load on mount
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  // Start Edit
+  const handleEdit = (item: any) => {
+    setEditingYear(item.Year)
+    setEditFormData({ ...item })
+    setMessage(null)
+  }
+
+  // Cancel Edit
+  const handleCancelEdit = () => {
+    setEditingYear(null)
+    setEditFormData(null)
+    setMessage(null)
+  }
+
+  // Handle Input Change
+  const handleFieldChange = (field: string, value: string) => {
+    setEditFormData((prev: any) => ({ ...prev, [field]: parseFloat(value) || 0 }))
+  }
+
+  // Save Changes
+  const handleSaveEdit = async () => {
+    if (!editFormData || editingYear === null) return
+    setLoading(true)
+    try {
+      const { Year, ...updates } = editFormData
+      await updateAgeData(editingYear, updates)
+      setMessage({ type: 'success', text: `Year ${editingYear} updated successfully.` })
+      handleCancelEdit()
+      await loadData() // Refresh table
+    } catch (error: any) {
+      setMessage({ type: 'error', text: 'Failed to save changes.' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Delete Row
+  const handleDelete = async (year: number) => {
+    if (!confirm(`Are you sure you want to delete data for Year ${year}?`)) return
+    setLoading(true)
+    try {
+      await deleteAgeData(year)
+      setMessage({ type: 'success', text: `Data for ${year} deleted.` })
+      await loadData()
+    } catch (error: any) {
+      setMessage({ type: 'error', text: 'Failed to delete.' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Get Columns (Hardcoded to Age logic)
+  const columns = COLUMN_ORDERS['age'] || []
+
+  if (loading && data.length === 0) return <div className="p-8 text-center text-amber-800">Loading table data...</div>
+
+  return (
+    <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border-2 border-amber-200 overflow-hidden">
+      
+      {/* Table Header / Status Bar */}
+      <div className="p-6 border-b border-amber-200 flex justify-between items-center bg-amber-50/50">
+        <h3 className="text-xl font-bold text-amber-900 flex items-center gap-2">
+          <TableIcon className="text-amber-600" /> Manage Age Data
+        </h3>
+        {message && (
+          <div className={`text-sm px-3 py-1 rounded-full flex items-center gap-2 ${
+            message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+          }`}>
+            <AlertCircle size={14} /> {message.text}
+          </div>
+        )}
+      </div>
+
+      {/* The Table */}
+      <div className="overflow-x-auto max-h-[600px]">
+        <table className="w-full text-sm text-left">
+          <thead className="bg-amber-100/50 text-amber-900 sticky top-0 z-10 shadow-sm">
+            <tr>
+              <th className="px-4 py-3 font-bold border-b border-amber-200 w-24">Year</th>
+              {columns.map(col => (
+                <th key={col} className="px-4 py-3 font-semibold border-b border-amber-200 min-w-[100px]">
+                  {col}
+                </th>
+              ))}
+            { isAuthenticated && (
+              <th className="px-4 py-3 font-bold border-b border-amber-200 text-center w-32">Actions</th>
+            )}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-amber-100">
+            {data.map((row) => {
+              const isEditing = editingYear === row.Year
+              return (
+                <tr key={row.Year} className={`hover:bg-amber-50/60 transition-colors ${isEditing ? 'bg-amber-50' : ''}`}>
+                  
+                  {/* Year Column (Read Only) */}
+                  <td className="px-4 py-3 font-bold text-amber-900">{row.Year}</td>
+
+                  {/* Data Columns */}
+                  {columns.map(col => (
+                    <td key={col} className="px-4 py-2">
+                      {isEditing ? (
+                        <input
+                          type="number"
+                          value={editFormData[col]}
+                          onChange={(e) => handleFieldChange(col, e.target.value)}
+                          className="w-full px-2 py-1 bg-white border border-amber-300 rounded focus:ring-2 focus:ring-amber-400 focus:outline-none text-amber-900"
+                        />
+                      ) : (
+                        <span className="text-amber-800">{row[col]?.toLocaleString() || 0}</span>
+                      )}
+                    </td>
+                  ))}
+
+                  {/* Actions Column */}
+                  {isAuthenticated && (
+                  <td className="px-4 py-2">
+                    <div className="flex justify-center gap-2">
+                      {isEditing ? (
+                        <>
+                          <button onClick={handleSaveEdit} className="p-1.5 bg-green-100 text-green-700 rounded hover:bg-green-200" title="Save">
+                            <Save size={16} />
+                          </button>
+                          <button onClick={handleCancelEdit} className="p-1.5 bg-gray-100 text-gray-600 rounded hover:bg-gray-200" title="Cancel">
+                            <X size={16} />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button onClick={() => handleEdit(row)} className="p-1.5 text-amber-600 hover:bg-amber-100 rounded transition-colors" title="Edit">
+                            <Edit2 size={16} />
+                          </button>
+                          <button onClick={() => handleDelete(row.Year)} className="p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 rounded transition-colors" title="Delete">
+                            <Trash2 size={16} />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                  )}
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      {data.length === 0 && !loading && (
+        <div className="p-8 text-center text-amber-800/50">No data available.</div>
+      )}
+    </div>
+  )
+}
+
+const AgeUpload = () => {
+  const [file, setFile] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Handle File Selection
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0])
+      setMessage(null)
+    }
+  }
+
+  // Handle Upload Logic
+  const handleUpload = async () => {
+    if (!file) {
+      setMessage({ type: 'error', text: 'Please select a CSV file first.' })
+      return
+    }
+
+    setUploading(true)
+    setMessage(null)
+
+    try {
+      // Calling the service directly for Age
+      const response = await uploadAgeData(file)
+      
+      setMessage({ 
+        type: 'success', 
+        text: response.message || 'Data uploaded successfully! Switch to Charts to view.' 
+      })
+      setFile(null) // Reset file after success
+      if (fileInputRef.current) fileInputRef.current.value = '' // Reset input
+      
+    } catch (error: any) {
+      console.error(error)
+      setMessage({ 
+        type: 'error', 
+        text: error.message || 'Upload failed. Check your CSV format.' 
+      })
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <div className="bg-white/80 backdrop-blur-lg p-8 md:p-12 rounded-2xl shadow-xl border-2 border-amber-200 min-h-[500px] flex flex-col items-center justify-center text-center animate-in fade-in zoom-in-95 duration-300">
+      
+      {/* Icon & Title */}
+      <div className="bg-amber-100 p-5 rounded-full mb-6 shadow-inner">
+        <UploadCloud size={48} className="text-amber-600" />
+      </div>
+      
+      <h3 className="text-2xl font-bold text-amber-950 mb-3">
+        Upload Age Demographics
+      </h3>
+      
+      <p className="text-amber-800/60 max-w-md mb-8 text-sm md:text-base leading-relaxed">
+        Upload a standard CSV file containing Age group columns. 
+        <br />
+        <span className="text-xs font-mono bg-amber-50 px-2 py-1 rounded mt-2 inline-block border border-amber-100">
+          Required: Year, 0-14, 15-24, 25-34...
+        </span>
+      </p>
+
+      {/* Upload Zone */}
+      <div className="w-full max-w-lg space-y-4">
+        
+        {/* Hidden Input */}
+        <input 
+          type="file" 
+          accept=".csv"
+          onChange={handleFileChange} 
+          className="hidden" 
+          ref={fileInputRef}
+        />
+
+        {/* Custom File Button / Display */}
+        {!file ? (
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            className="w-full border-2 border-dashed border-amber-300 hover:border-amber-500 hover:bg-amber-50 rounded-xl p-8 transition-all group flex flex-col items-center gap-3 cursor-pointer"
+          >
+            <FileUp className="text-amber-400 group-hover:text-amber-600 transition-colors" size={32} />
+            <span className="text-amber-700 font-semibold group-hover:text-amber-900">Click to Select CSV</span>
+          </button>
+        ) : (
+          <div className="w-full bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3 overflow-hidden">
+              <FileSpreadsheet className="text-green-600 shrink-0" size={24} />
+              <span className="text-amber-900 font-medium truncate text-sm">{file.name}</span>
+            </div>
+            <button 
+              onClick={() => { setFile(null); if(fileInputRef.current) fileInputRef.current.value = ''; }}
+              className="text-amber-400 hover:text-red-500 transition-colors"
+            >
+              <X size={20} />
+            </button>
+          </div>
+        )}
+
+        {/* Action Button */}
+        <button
+          onClick={handleUpload}
+          disabled={!file || uploading}
+          className={`
+            w-full py-4 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-2 transition-all
+            ${!file || uploading 
+              ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+              : 'bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:from-amber-600 hover:to-orange-700 hover:shadow-xl hover:scale-[1.01]'
+            }
+          `}
+        >
+          {uploading ? (
+            <>
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              Uploading...
+            </>
+          ) : (
+            <>
+              <UploadCloud size={20} /> Upload Data
+            </>
+          )}
+        </button>
+
+        {/* Status Messages */}
+        {message && (
+          <div className={`mt-4 p-4 rounded-xl flex items-center gap-3 text-left text-sm ${
+            message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
+          }`}>
+            {message.type === 'success' ? <CheckCircle2 className="shrink-0" size={18} /> : <AlertCircle className="shrink-0" size={18} />}
+            {message.text}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+const AgeForecasting = () => (
+  <div className="bg-white/80 p-8 rounded-2xl border-2 border-amber-200 shadow-xl min-h-[400px]">
+    <h3 className="text-xl font-bold text-amber-900 mb-4 flex items-center gap-2">
+      <LineChart className="text-amber-600" /> Predictive Forecasting
+    </h3>
+    <p className="text-amber-800/60">Future trend predictions will appear here...</p>
+  </div>
+)
+
+export const Route = createFileRoute('/ageCategory')({
+  component: AgeComposition,
+})
+
+// --- CONFIGURATION ---
+const TABS = [
+  { id: 'charts', label: 'Charts', restricted: false },
+  { id: 'table', label: 'Data Table', restricted: false },
+  { id: 'upload', label: 'Upload', restricted: true },
+  { id: 'forecasting', label: 'Forecasting', restricted: false },
+]
+
+function AgeComposition() {
+  // 1. Data Fetching
+  const { isAuthenticated } = useAuth()
+  const { chartData, ageGroups } = useParseAgeData()
+  
+  // 2. State Management
+  const [activeView, setActiveView] = useState('charts') // Default to 'charts'
+  const [selectedAgeGroups, setSelectedAgeGroups] = useState<string[]>([])
+  const [selectedYear, setSelectedYear] = useState<string>('All Years')
+
+  // Initialize defaults
+  useEffect(() => {
+    if (ageGroups.length > 0 && selectedAgeGroups.length === 0) {
+      setSelectedAgeGroups(ageGroups)
+    }
+  }, [ageGroups])
+
+  // 3. Stats Calculation (Your existing logic)
+  const computedStats = useMemo(() => {
+    if (!chartData || chartData.length === 0) return null
+    const sumKey = (data: any[], key: string) => data.reduce((acc, curr) => acc + (Number(curr[key]) || 0), 0)
+
+    let stat1 = { label: 'Total Emigrants', value: '0', sub: 'In selected view', icon: Users }
+    let stat2 = { label: 'Top Age Group', value: '-', sub: 'Highest volume', icon: TrendingUp }
+    let stat3 = { label: 'Peak Year', value: '-', sub: 'Highest recorded', icon: Calendar }
+
+    if (selectedYear === 'All Years') {
+      // Total Volume
+      const totalVolume = chartData.reduce((acc, yearRow) => {
+        let rowSum = 0
+        selectedAgeGroups.forEach(group => { rowSum += (Number(yearRow[group]) || 0) })
+        return acc + rowSum
+      }, 0)
+      stat1.value = totalVolume.toLocaleString()
+      stat1.sub = 'Total (1981 - 2020)'
+
+      // Top Age Group
+      let maxGroup = ''
+      let maxGroupVal = 0
+      selectedAgeGroups.forEach(group => {
+        const groupTotal = sumKey(chartData, group)
+        if (groupTotal > maxGroupVal) { maxGroupVal = groupTotal; maxGroup = group; }
+      })
+      stat2.value = maxGroup
+      stat2.sub = `${maxGroupVal.toLocaleString()} recorded`
+
+      // Peak Year
+      // Peak Year
+      let peakYear = ''
+      let peakYearVal = 0
+      chartData.forEach(row => {
+        let rowSum = 0
+        selectedAgeGroups.forEach(group => { rowSum += (Number(row[group]) || 0) })
+        if (rowSum > peakYearVal) {
+          peakYearVal = rowSum
+          peakYear = String(row.Year) // Fix for TS error
+        }
+      })
+      stat3.value = peakYear
+      stat3.sub = `${peakYearVal.toLocaleString()} recorded`
+
+    } else {
+      // Specific Year Logic
+      const yearRow = chartData.find(d => String(d.Year) === String(selectedYear))
+      if (yearRow) {
+        let yearTotal = 0
+        selectedAgeGroups.forEach(group => { yearTotal += (Number(yearRow[group]) || 0) })
+        stat1.value = yearTotal.toLocaleString()
+        stat1.sub = `Total in ${selectedYear}`
+
+        let maxGroup = ''
+        let maxGroupVal = 0
+        selectedAgeGroups.forEach(group => {
+           const val = Number(yearRow[group]) || 0
+           if (val > maxGroupVal) { maxGroupVal = val; maxGroup = group; }
+        })
+        stat2.value = maxGroup
+        stat2.sub = `${((maxGroupVal/yearTotal)*100).toFixed(1)}% of total`
+        
+        stat3.icon = BarChart3
+        stat3.label = "Yearly Contribution"
+        // Simple placeholder logic for 3rd stat in single year view
+        stat3.value = "N/A" 
+        stat3.sub = "Select 'All Years' for trends"
+      }
+    }
+
+    return [stat1, stat2, stat3]
+  }, [chartData, selectedYear, selectedAgeGroups])
+
+
+  return (
+    <div className="min-h-screen w-full bg-[#FFFBF5] p-4 md:p-8 lg:p-12 space-y-8 font-sans">
+      
+      {/* Header */}
+      <header className="space-y-2 max-w-7xl mx-auto">
+        <h1 className="text-3xl md:text-4xl font-bold text-amber-950 tracking-tight">
+          Demographic Composition
+        </h1>
+        <p className="text-amber-900/60 font-medium text-lg max-w-2xl">
+          Analysis of emigration trends categorized by age groups.
+        </p>
+      </header>
+
+      {/* --- REFACTORED TABS NAVIGATION --- */}
+      <div className="sticky top-0 z-30 bg-[#FFFBF5]/95 backdrop-blur-sm border-b border-amber-200/60 max-w-7xl mx-auto mb-6">
+        <div className="flex items-center gap-8 overflow-x-auto no-scrollbar">
+          {TABS.filter(tab => !tab.restricted || isAuthenticated).map((tab) => {
+    const isActive = activeView === tab.id
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveView(tab.id)}
+                className={`
+                  group relative py-4 text-sm font-bold uppercase tracking-wider transition-colors duration-300 whitespace-nowrap
+                  ${isActive ? 'text-amber-800' : 'text-amber-800/40 hover:text-amber-700'}
+                `}
+              >
+                {tab.label}
+                {/* Active Indicator Line */}
+                <span 
+                  className={`
+                    absolute bottom-0 left-0 h-[3px] bg-amber-600 rounded-full transition-all duration-300
+                    ${isActive ? 'w-full opacity-100' : 'w-0 opacity-0 group-hover:w-1/2 group-hover:opacity-30'}
+                  `} 
+                />
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* --- MAIN GRID --- */}
+      <main className="grid grid-cols-1 xl:grid-cols-4 gap-8 max-w-7xl mx-auto">
+        
+        {/* RIGHT COLUMN (Stats) */}
+        {/* We only show stats if we are not in 'Upload' mode, maybe? Or keep it always. */}
+        <div className="xl:col-span-1 order-1 xl:order-2 space-y-4">
+          <h3 className="text-amber-950 font-bold text-lg uppercase tracking-wider opacity-80 mb-4 hidden xl:block">
+            Quick Insights
+          </h3>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-1 gap-4">
+            {computedStats ? computedStats.map((stat) => (
+              <div 
+                key={stat.label}
+                className="bg-white/60 hover:bg-white/80 backdrop-blur-md border border-amber-200/50 p-5 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 group"
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <div className="p-2 bg-amber-100/50 rounded-lg text-amber-700 group-hover:bg-amber-100 group-hover:text-amber-800 transition-colors">
+                    <stat.icon size={20} strokeWidth={2} />
+                  </div>
+                  <ArrowUpRight className="text-amber-300 group-hover:text-amber-500 transition-colors" size={16} />
+                </div>
+                
+                <div className="space-y-1">
+                  <p className="text-amber-900/50 text-xs font-bold uppercase tracking-wide">
+                    {stat.label}
+                  </p>
+                  <p className="text-2xl font-bold text-amber-950 truncate">
+                    {stat.value}
+                  </p>
+                  <p className="text-xs text-amber-700 font-medium truncate">
+                    {stat.sub}
+                  </p>
+                </div>
+              </div>
+            )) : (
+              // Loading Skeletons
+              [1,2,3].map(i => <div key={i} className="animate-pulse bg-amber-900/5 h-24 rounded-xl"></div>)
+            )}
+          </div>
+        </div>
+
+        {/* LEFT COLUMN (Dynamic Content) */}
+        <div className="xl:col-span-3 order-2 xl:order-1 animate-in fade-in slide-in-from-bottom-4 duration-500">
+           
+           {/* CONDITIONAL RENDERING BASED ON ACTIVE VIEW */}
+           
+           {activeView === 'charts' && (
+             <AgeCharts />
+           )}
+
+           {activeView === 'table' && (
+             <AgeDataTable />
+           )}
+
+           {activeView === 'upload' && (
+             <AgeUpload />
+           )}
+
+           {activeView === 'forecasting' && (
+             <AgeForecasting />
+           )}
+
+        </div>
+
+      </main>
+    </div>
+  )
+}
+async function uploadAgeData(file: File): Promise<{ message: string }> {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const response = await fetch('/api/age/upload', {
+    method: 'POST',
+    body: formData,
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.message || 'Failed to upload file')
+  }
+
+  return response.json()
+}
