@@ -9,7 +9,6 @@ import {
   getCategories
 } from './baseService'
 
-// Collection Path in Firebase Cloud DB
 const AGE_COLLECTION = 'emigrantData/age/years'
 
 export interface AgeData {

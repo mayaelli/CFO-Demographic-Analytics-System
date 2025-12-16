@@ -8,13 +8,11 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-// THE SECRET PASSWORD (In a real app, put this in .env file like import.meta.env.VITE_ADMIN_PASSWORD)
 const ADMIN_PASSWORD = "admin123" 
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
 
-  // Check LocalStorage on load so you stay logged in on refresh
   useEffect(() => {
     const storedAuth = localStorage.getItem('isAdminLoggedIn')
     if (storedAuth === 'true') {

@@ -16,7 +16,6 @@ interface UploadDataCardProps {
 export default function UploadDataCard({
   title,
   description,
-  requirements,
   selectedFile,
   message,
   uploading,

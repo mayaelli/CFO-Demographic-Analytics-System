@@ -1,8 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState, useMemo, useEffect, useRef} from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { 
   Users, TrendingUp, Calendar, ArrowUpRight, BarChart3, 
-  Table as TableIcon, UploadCloud, LineChart, Save, X, Edit2, Trash2, AlertCircle, CheckCircle2, FileUp, FileSpreadsheet
+  Table as TableIcon, Save, X, Edit2, Trash2, AlertCircle 
 } from 'lucide-react'
 
 // Components
@@ -14,8 +14,8 @@ import { COLUMN_ORDERS } from '../utils/columnOrders'
 
 import { useAuth } from '../context/authContext'
 
+// --- PLACEHOLDER COMPONENTS ---
 
-// --- PLACEHOLDER COMPONENTS (Move these to separate files later) ---
 const AgeDataTable = () => {
   const { isAuthenticated } = useAuth()
   const [data, setData] = useState<any[]>([])
@@ -196,165 +196,15 @@ const AgeDataTable = () => {
   )
 }
 
-const AgeUpload = () => {
-  const [file, setFile] = useState<File | null>(null)
-  const [uploading, setUploading] = useState(false)
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  // Handle File Selection
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0])
-      setMessage(null)
-    }
-  }
-
-  // Handle Upload Logic
-  const handleUpload = async () => {
-    if (!file) {
-      setMessage({ type: 'error', text: 'Please select a CSV file first.' })
-      return
-    }
-
-    setUploading(true)
-    setMessage(null)
-
-    try {
-      // Calling the service directly for Age
-      const response = await uploadAgeData(file)
-      
-      setMessage({ 
-        type: 'success', 
-        text: response.message || 'Data uploaded successfully! Switch to Charts to view.' 
-      })
-      setFile(null) // Reset file after success
-      if (fileInputRef.current) fileInputRef.current.value = '' // Reset input
-      
-    } catch (error: any) {
-      console.error(error)
-      setMessage({ 
-        type: 'error', 
-        text: error.message || 'Upload failed. Check your CSV format.' 
-      })
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  return (
-    <div className="bg-white/80 backdrop-blur-lg p-8 md:p-12 rounded-2xl shadow-xl border-2 border-amber-200 min-h-[500px] flex flex-col items-center justify-center text-center animate-in fade-in zoom-in-95 duration-300">
-      
-      {/* Icon & Title */}
-      <div className="bg-amber-100 p-5 rounded-full mb-6 shadow-inner">
-        <UploadCloud size={48} className="text-amber-600" />
-      </div>
-      
-      <h3 className="text-2xl font-bold text-amber-950 mb-3">
-        Upload Age Demographics
-      </h3>
-      
-      <p className="text-amber-800/60 max-w-md mb-8 text-sm md:text-base leading-relaxed">
-        Upload a standard CSV file containing Age group columns. 
-        <br />
-        <span className="text-xs font-mono bg-amber-50 px-2 py-1 rounded mt-2 inline-block border border-amber-100">
-          Required: Year, 0-14, 15-24, 25-34...
-        </span>
-      </p>
-
-      {/* Upload Zone */}
-      <div className="w-full max-w-lg space-y-4">
-        
-        {/* Hidden Input */}
-        <input 
-          type="file" 
-          accept=".csv"
-          onChange={handleFileChange} 
-          className="hidden" 
-          ref={fileInputRef}
-        />
-
-        {/* Custom File Button / Display */}
-        {!file ? (
-          <button 
-            onClick={() => fileInputRef.current?.click()}
-            className="w-full border-2 border-dashed border-amber-300 hover:border-amber-500 hover:bg-amber-50 rounded-xl p-8 transition-all group flex flex-col items-center gap-3 cursor-pointer"
-          >
-            <FileUp className="text-amber-400 group-hover:text-amber-600 transition-colors" size={32} />
-            <span className="text-amber-700 font-semibold group-hover:text-amber-900">Click to Select CSV</span>
-          </button>
-        ) : (
-          <div className="w-full bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3 overflow-hidden">
-              <FileSpreadsheet className="text-green-600 shrink-0" size={24} />
-              <span className="text-amber-900 font-medium truncate text-sm">{file.name}</span>
-            </div>
-            <button 
-              onClick={() => { setFile(null); if(fileInputRef.current) fileInputRef.current.value = ''; }}
-              className="text-amber-400 hover:text-red-500 transition-colors"
-            >
-              <X size={20} />
-            </button>
-          </div>
-        )}
-
-        {/* Action Button */}
-        <button
-          onClick={handleUpload}
-          disabled={!file || uploading}
-          className={`
-            w-full py-4 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-2 transition-all
-            ${!file || uploading 
-              ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
-              : 'bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:from-amber-600 hover:to-orange-700 hover:shadow-xl hover:scale-[1.01]'
-            }
-          `}
-        >
-          {uploading ? (
-            <>
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              Uploading...
-            </>
-          ) : (
-            <>
-              <UploadCloud size={20} /> Upload Data
-            </>
-          )}
-        </button>
-
-        {/* Status Messages */}
-        {message && (
-          <div className={`mt-4 p-4 rounded-xl flex items-center gap-3 text-left text-sm ${
-            message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
-          }`}>
-            {message.type === 'success' ? <CheckCircle2 className="shrink-0" size={18} /> : <AlertCircle className="shrink-0" size={18} />}
-            {message.text}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-const AgeForecasting = () => (
-  <div className="bg-white/80 p-8 rounded-2xl border-2 border-amber-200 shadow-xl min-h-[400px]">
-    <h3 className="text-xl font-bold text-amber-900 mb-4 flex items-center gap-2">
-      <LineChart className="text-amber-600" /> Predictive Forecasting
-    </h3>
-    <p className="text-amber-800/60">Future trend predictions will appear here...</p>
-  </div>
-)
-
 export const Route = createFileRoute('/ageCategory')({
   component: AgeComposition,
 })
 
 // --- CONFIGURATION ---
+// Removed Upload and Forecasting from TABS
 const TABS = [
   { id: 'charts', label: 'Charts', restricted: false },
   { id: 'table', label: 'Data Table', restricted: false },
-  { id: 'upload', label: 'Upload', restricted: true },
-  { id: 'forecasting', label: 'Forecasting', restricted: false },
 ]
 
 function AgeComposition() {
@@ -403,7 +253,6 @@ function AgeComposition() {
       stat2.value = maxGroup
       stat2.sub = `${maxGroupVal.toLocaleString()} recorded`
 
-      // Peak Year
       // Peak Year
       let peakYear = ''
       let peakYearVal = 0
@@ -493,7 +342,6 @@ function AgeComposition() {
       <main className="grid grid-cols-1 xl:grid-cols-4 gap-8 max-w-7xl mx-auto">
         
         {/* RIGHT COLUMN (Stats) */}
-        {/* We only show stats if we are not in 'Upload' mode, maybe? Or keep it always. */}
         <div className="xl:col-span-1 order-1 xl:order-2 space-y-4">
           <h3 className="text-amber-950 font-bold text-lg uppercase tracking-wider opacity-80 mb-4 hidden xl:block">
             Quick Insights
@@ -533,7 +381,7 @@ function AgeComposition() {
 
         {/* LEFT COLUMN (Dynamic Content) */}
         <div className="xl:col-span-3 order-2 xl:order-1 animate-in fade-in slide-in-from-bottom-4 duration-500">
-           
+            
            {/* CONDITIONAL RENDERING BASED ON ACTIVE VIEW */}
            
            {activeView === 'charts' && (
@@ -544,33 +392,9 @@ function AgeComposition() {
              <AgeDataTable />
            )}
 
-           {activeView === 'upload' && (
-             <AgeUpload />
-           )}
-
-           {activeView === 'forecasting' && (
-             <AgeForecasting />
-           )}
-
         </div>
 
       </main>
     </div>
   )
-}
-async function uploadAgeData(file: File): Promise<{ message: string }> {
-  const formData = new FormData()
-  formData.append('file', file)
-
-  const response = await fetch('/api/age/upload', {
-    method: 'POST',
-    body: formData,
-  })
-
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.message || 'Failed to upload file')
-  }
-
-  return response.json()
 }

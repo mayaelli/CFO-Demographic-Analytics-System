@@ -266,7 +266,6 @@ const Landing = forwardRef<HTMLDivElement>((_props, ref) => {
 
         {/* --- Key Findings (Colored Background) --- */}
         <div className="bg-[#4a1319] text-amber-50 rounded-3xl p-8 md:p-12 animate-fade-in-up shadow-2xl relative overflow-hidden" style={{ animationDelay: '0.8s' }}>
-          {/* Subtle pattern overlay on the dark background */}
           <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10" />
           
           <h2 className="text-2xl font-bold text-amber-100 mb-8 border-b border-amber-500/30 pb-4 relative z-10">Analytical Summary</h2>

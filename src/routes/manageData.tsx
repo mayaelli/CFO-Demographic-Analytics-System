@@ -3,8 +3,6 @@ import { useState, useEffect } from 'react'
 import { 
   Trash2, Edit2, Save, X, Database, AlertCircle, CheckCircle2, Search, ChevronDown, Check
 } from 'lucide-react'
-
-// --- YOUR EXISTING IMPORTS ---
 import LoadingScreen from '../components/loadingScreen'
 import { COLUMN_ORDERS } from '../utils/columnOrders'
 import { getAllAgeData, updateAgeData, deleteAgeData, deleteAllAgeData } from '../api/ageService'
@@ -62,16 +60,10 @@ function ManageData() {
     loadData()
   }, [selectedDataType])
 
-  // --- YOUR EXISTING LOGIC FUNCTIONS (loadData, handleEdit, handleSaveEdit, handleDelete, handleDeleteAll) ---
-  // Paste your logic here exactly as it was. 
-  // For brevity in this snippet, I am assuming the logic is present.
-  
-  // ... [INSERT YOUR loadData FUNCTION HERE] ...
   const loadData = async () => {
     setLoading(true); setMessage(null);
     try {
       let result: any[] = []
-      // ... your switch statement ...
       switch (selectedDataType) {
         case 'age': result = await getAllAgeData(); break;
         case 'civilStatus': result = await getAllCivilStatusData(); break;
@@ -92,14 +84,11 @@ function ManageData() {
   const handleEdit = (item: any) => { setEditingYear(item.Year); setEditFormData({ ...item }); }
   const handleCancelEdit = () => { setEditingYear(null); setEditFormData(null); }
   const handleFieldChange = (field: string, value: string) => { setEditFormData((prev: any) => ({ ...prev, [field]: parseFloat(value) || 0 })) }
-
-  // ... [INSERT YOUR handleSaveEdit, handleDelete, handleDeleteAll FUNCTIONS HERE] ...
   const handleSaveEdit = async () => {
      if (!editFormData || editingYear === null) return
      setLoading(true)
      try {
        const { Year, ...updates } = editFormData
-       // ... your switch statement ...
        switch (selectedDataType) {
         case 'age': await updateAgeData(editingYear, updates); break;
         case 'civilStatus': await updateCivilStatusData(editingYear, updates); break;
@@ -123,7 +112,6 @@ function ManageData() {
     if (!confirm(`Delete data for Year ${year}?`)) return
     setLoading(true)
     try {
-        // ... your switch statement ...
         switch (selectedDataType) {
             case 'age': await deleteAgeData(year); break;
             case 'civilStatus': await deleteCivilStatusData(year); break;
@@ -145,7 +133,6 @@ function ManageData() {
     if (!confirm(`Delete ALL records for ${selectedDataType}?`)) return
     setLoading(true)
     try {
-        // ... your switch statement ...
         switch (selectedDataType) {
             case 'age': await deleteAllAgeData(); break;
             case 'civilStatus': await deleteAllCivilStatusData(); break;
@@ -163,7 +150,6 @@ function ManageData() {
     finally { setLoading(false) }
   }
 
-  // --- NEW UI IMPLEMENTATION ---
   return (
     <div className="min-h-screen bg-[#FFFBF5] p-6 md:p-10 font-sans text-amber-950">
       <div className="max-w-[1600px] mx-auto space-y-8">

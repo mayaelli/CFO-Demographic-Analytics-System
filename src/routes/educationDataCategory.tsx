@@ -1,10 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useAuth } from '../context/authContext'
 import { 
   GraduationCap, BookOpen, Calendar, ArrowUpRight, 
-  Table as TableIcon, UploadCloud, LineChart, Save, X, Edit2, Trash2, 
-  AlertCircle, FileSpreadsheet, CheckCircle2, FileUp 
+  Table as TableIcon, Save, X, Edit2, Trash2, 
 } from 'lucide-react'
 import EducationCharts from '@/components/charts/educationCharts'
 
@@ -16,64 +15,6 @@ import LoadingScreen from '../components/loadingScreen'
 
 // Assumed API services
 import { getAllEducationData, updateEducationData, deleteEducationData } from '../api/educationService'
-
-// --- 1. SPECIALIZED UPLOAD COMPONENT ---
-const EducationUpload = () => {
-  const [file, setFile] = useState<File | null>(null)
-  const [uploading, setUploading] = useState(false)
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  const handleUpload = async () => {
-    if (!file) return
-    setUploading(true)
-    setMessage(null)
-    try {
-      const response = await uploadEducationData(file)
-      setMessage({ type: 'success', text: response.message || 'Education data uploaded successfully!' })
-      setFile(null)
-      if (fileInputRef.current) fileInputRef.current.value = ''
-    } catch (error: any) {
-      setMessage({ type: 'error', text: error.message || 'Upload failed.' })
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  return (
-    <div className="bg-white/80 backdrop-blur-lg p-8 md:p-12 rounded-2xl shadow-xl border-2 border-amber-200 min-h-[500px] flex flex-col items-center justify-center text-center animate-in fade-in zoom-in-95 duration-300">
-      <div className="bg-amber-100 p-5 rounded-full mb-6 shadow-inner">
-        <UploadCloud size={48} className="text-amber-600" />
-      </div>
-      <h3 className="text-2xl font-bold text-amber-950 mb-3">Upload Education Data</h3>
-      <p className="text-amber-800/60 max-w-md mb-8 text-sm md:text-base">
-        Upload a CSV containing education attainment data.<br/>
-        <span className="text-xs font-mono bg-amber-50 px-2 py-1 rounded mt-2 inline-block border border-amber-100">
-            Required: Year, No Grade, Elementary, Secondary, College, etc.
-        </span>
-      </p>
-      
-      <div className="w-full max-w-lg space-y-4">
-        <input type="file" accept=".csv" onChange={(e) => setFile(e.target.files?.[0] || null)} className="hidden" ref={fileInputRef} />
-        {!file ? (
-          <button onClick={() => fileInputRef.current?.click()} className="w-full border-2 border-dashed border-amber-300 hover:border-amber-500 hover:bg-amber-50 rounded-xl p-8 transition-all group flex flex-col items-center gap-3">
-            <FileUp className="text-amber-400 group-hover:text-amber-600" size={32} />
-            <span className="text-amber-700 font-semibold">Click to Select CSV</span>
-          </button>
-        ) : (
-          <div className="w-full bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3"><FileSpreadsheet className="text-green-600" size={24} /><span className="text-amber-900 font-medium truncate">{file.name}</span></div>
-            <button onClick={() => setFile(null)}><X size={20} className="text-amber-400 hover:text-red-500" /></button>
-          </div>
-        )}
-        <button onClick={handleUpload} disabled={!file || uploading} className={`w-full py-4 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-2 transition-all ${!file || uploading ? 'bg-gray-200 text-gray-400' : 'bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:scale-[1.01]'}`}>
-          {uploading ? 'Uploading...' : <><UploadCloud size={20} /> Upload Data</>}
-        </button>
-        {message && <div className={`p-4 rounded-xl flex items-center gap-3 text-sm ${message.type === 'success' ? 'bg-green-50 text-green-800 border-green-200' : 'bg-red-50 text-red-800 border-red-200'} border`}>{message.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}{message.text}</div>}
-      </div>
-    </div>
-  )
-}
 
 // --- 2. DATA TABLE COMPONENT ---
 const EducationDataTable = () => {
@@ -157,16 +98,6 @@ const EducationDataTable = () => {
   )
 }
 
-
-// --- 4. FORECASTING PLACEHOLDER ---
-const EducationForecasting = () => (
-  <div className="bg-white/80 p-8 rounded-2xl border-2 border-amber-200 shadow-xl min-h-[400px] flex flex-col items-center justify-center text-center">
-    <LineChart size={64} className="text-amber-200 mb-4" />
-    <h3 className="text-xl font-bold text-amber-900 mb-2">Predictive Analysis</h3>
-    <p className="text-amber-800/60">Forecasting models for educational attainment trends will appear here.</p>
-  </div>
-)
-
 // --- MAIN PAGE COMPONENT ---
 export const Route = createFileRoute('/educationDataCategory')({
   component: EducationDistribution,
@@ -175,8 +106,6 @@ export const Route = createFileRoute('/educationDataCategory')({
 const TABS = [
   { id: 'charts', label: 'Charts', restricted: false },
   { id: 'table', label: 'Data Table', restricted: false },
-  { id: 'upload', label: 'Upload', restricted: true },
-  { id: 'forecasting', label: 'Forecasting', restricted: false },
 ]
 
 function EducationDistribution() {
@@ -278,27 +207,8 @@ function EducationDistribution() {
              <EducationCharts />
            )}
            {activeView === 'table' && <EducationDataTable />}
-           {activeView === 'upload' && <EducationUpload />}
-           {activeView === 'forecasting' && <EducationForecasting />}
         </div>
       </main>
     </div>
   )
-}
-
-async function uploadEducationData(file: File): Promise<{ message: string }> {
-  const formData = new FormData()
-  formData.append('file', file)
-
-  const response = await fetch('/api/age/upload', {
-    method: 'POST',
-    body: formData,
-  })
-
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.message || 'Failed to upload file')
-  }
-
-  return response.json()
 }

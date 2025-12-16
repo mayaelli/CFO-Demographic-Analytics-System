@@ -1,107 +1,223 @@
-// utils/mlpModel.ts
 import * as tf from '@tensorflow/tfjs';
 
-export function buildMLPModel(inputShape: number) {
+// --- 1. Define the Shape of the Saved Data ---
+export interface ModelMetadata {
+  name: string;
+  hyperparameters: {
+    units: number;
+    learningRate: number;
+    lookback: number;
+  };
+  trainingHistory: Array<{
+    epoch: number;
+    loss: number;
+    mae: number;
+    accuracy: string;
+    val_loss?: number;
+  }>;
+  totalEpochsTrained: number;
+  lastUpdated: string;
+}
+
+// ==========================================
+//        CORE MODEL LOGIC
+// ==========================================
+
+/**
+ * Builds the MLP Model (Standard)
+ */
+export const buildMLPModel = (inputShape: number, units: number = 64, learningRate: number = 0.01) => {
   const model = tf.sequential();
   
-  // Layer 1: The Input Layer (More neurons to capture complexity)
-  model.add(tf.layers.dense({
-    inputShape: [inputShape],
-    units: 64, 
-    activation: 'relu'
-  }));
-
-  // Improvement: Dropout Layer (Prevents overfitting on small data)
+  model.add(tf.layers.dense({ units: units, activation: 'relu', inputShape: [inputShape] }));
   model.add(tf.layers.dropout({ rate: 0.2 }));
-
-  // Layer 2: Hidden Layer (Refining the pattern)
-  model.add(tf.layers.dense({
-    units: 32,
-    activation: 'relu'
-  }));
-
-  // Output Layer
+  model.add(tf.layers.dense({ units: Math.floor(units / 2), activation: 'relu' }));
+  model.add(tf.layers.dropout({ rate: 0.2 }));
   model.add(tf.layers.dense({ units: 1 }));
 
-  // Compile with a slightly lower learning rate for stability
   model.compile({
-    optimizer: tf.train.adam(0.001), 
-    loss: 'meanSquaredError'
+    optimizer: tf.train.adam(learningRate),
+    loss: 'meanSquaredError',
+    metrics: ['mae']
   });
 
   return model;
-}
+};
 
-export async function trainMLPModel(
-  model: tf.LayersModel, 
-  X: any, 
-  y: any, 
+/**
+ * Trains the model.
+ */
+export const trainMLPModel = async (
+  model: tf.Sequential, 
+  inputs: number[][], 
+  labels: number[], 
   onEpochEnd: (epoch: number, logs: any) => void,
-  epochs = 200 // Default increased to 200
-) {
-  const xs = tf.tensor2d(X);
-  const ys = tf.tensor2d(y, [y.length, 1]);
+  epochs: number = 100,
+  initialEpoch: number = 0 
+) => {
+  const xs = tf.tensor2d(inputs);
+  const ys = tf.tensor2d(labels, [labels.length, 1]);
+
+  // Baseline for accuracy calculation
+  const ySum = labels.reduce((a, b) => a + b, 0);
+  const yMean = ySum / labels.length || 1; 
 
   await model.fit(xs, ys, {
-    epochs: epochs,
-    batchSize: 4, // Smaller batch size helps with small datasets
-    shuffle: true,
+    epochs: epochs + initialEpoch, 
+    initialEpoch: initialEpoch,    
+    validationSplit: 0.2,
     callbacks: {
       onEpochEnd: (epoch, logs) => {
-        if(onEpochEnd) onEpochEnd(epoch, logs);
-      },
-      // MAGIC SAUCE: Stop if validation loss doesn't improve for 20 epochs
-      // (Note: Since we don't have a separate validation set, we monitor loss)
-      onTrainEnd: () => console.log('Training finished') 
+        if (onEpochEnd && logs) {
+            const currentMAE = logs.mae;
+            const errorRatio = currentMAE / yMean; 
+            const accuracyPercentage = Math.max(0, 100 * (1 - errorRatio));
+
+            onEpochEnd(epoch, {
+                loss: logs.loss,
+                mae: currentMAE,
+                val_loss: logs.val_loss,
+                accuracy: accuracyPercentage.toFixed(2) 
+            });
+        }
+      }
     }
   });
 
   xs.dispose();
   ys.dispose();
-  return model;
-}
+};
 
-export async function predictMLP(model: tf.LayersModel, X: number[][]) {
-  const xs = tf.tensor2d(X);
-  const predictions = model.predict(xs) as tf.Tensor;
-  
-  // FIX: Cast the result to 'number[][]' so TypeScript knows it's an array of arrays
-  const result = (await predictions.array()) as number[][];
-  
+/**
+ * NEW: Automated Hyperparameter Tuning
+ * Runs a Grid Search to find the best configuration.
+ * * @param inputs Training inputs
+ * @param labels Training labels
+ * @param progressCallback Optional callback to update UI on tuning progress (0-100%)
+ */
+export const tuneMLPModel = async (
+  inputs: number[][], 
+  labels: number[],
+  progressCallback?: (status: string) => void
+) => {
+    // 1. Define the Search Grid (You can expand this if needed)
+    const tuningGrid = {
+        units: [32, 64, 128],
+        learningRates: [0.01, 0.001]
+    };
+
+    let bestLoss = Infinity;
+    let bestConfig = { units: 64, learningRate: 0.01 }; // Default fallback
+
+    const totalCombinations = tuningGrid.units.length * tuningGrid.learningRates.length;
+    let currentIteration = 0;
+
+    // 2. Loop through every combination
+    for (const units of tuningGrid.units) {
+        for (const lr of tuningGrid.learningRates) {
+            currentIteration++;
+            if(progressCallback) progressCallback(`Tuning... Testing [Units: ${units}, LR: ${lr}] (${currentIteration}/${totalCombinations})`);
+
+            // A. Build a temporary model
+            // We use inputShape 1 (assuming normalized year input), adjust if your inputs change
+            const tempModel = buildMLPModel(1, units, lr); 
+            
+            // B. Train for a short period (e.g., 30 epochs) just to check convergence
+            let finalValLoss = Infinity;
+            
+            await trainMLPModel(tempModel, inputs, labels, (_, logs) => {
+                // We only care about the loss at the very end
+                if (logs.val_loss) finalValLoss = logs.val_loss;
+                else finalValLoss = logs.loss; // Fallback if no validation
+            }, 30, 0);
+
+            // C. Compare results
+            if (finalValLoss < bestLoss) {
+                bestLoss = finalValLoss;
+                bestConfig = { units, learningRate: lr };
+            }
+
+            // D. Clean up memory
+            tempModel.dispose();
+        }
+    }
+
+    if(progressCallback) progressCallback(`Tuning Complete. Best: ${bestConfig.units} units, LR ${bestConfig.learningRate}`);
+    
+    // 3. Return the winner
+    return bestConfig;
+};
+
+export const predictMLP = async (model: tf.Sequential, inputData: number[][]) => {
+  const xs = tf.tensor2d(inputData);
+  const prediction = model.predict(xs) as tf.Tensor;
+  const data = await prediction.data();
   xs.dispose();
-  predictions.dispose();
-  
-  return result.map((r) => r[0]);
-}
+  prediction.dispose();
+  return Array.from(data);
+};
 
-// Save to IndexedDB
-export async function saveMLPModel(model: tf.LayersModel, metadata: any, modelName: string) {
-  await model.save(`indexeddb://${modelName}`);
-  localStorage.setItem(`${modelName}-metadata`, JSON.stringify(metadata));
-}
+// ==========================================
+//      STORAGE & EXPORT MANAGER
+// ==========================================
 
-// Load from IndexedDB
-export async function loadMLPModel(modelName: string) {
+export const saveMLPModel = async (
+  model: tf.Sequential, 
+  metadata: ModelMetadata, 
+  saveMode: 'local' | 'download' = 'local'
+) => {
+  const modelName = metadata.name || 'civil-status-mlp';
+
+  if (saveMode === 'local') {
+    await model.save(`localstorage://${modelName}`);
+    localStorage.setItem(`${modelName}_meta`, JSON.stringify(metadata));
+    console.log(`Model and Metadata saved locally as ${modelName}`);
+  } else {
+    await model.save(`downloads://${modelName}`);
+    const metadataBlob = new Blob([JSON.stringify(metadata, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(metadataBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${modelName}_metadata.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    console.log(`Model exported as files.`);
+  }
+};
+
+export const loadMLPModel = async (modelName: string = 'civil-status-mlp') => {
   try {
-    const model = await tf.loadLayersModel(`indexeddb://${modelName}`);
-    const metadataStr = localStorage.getItem(`${modelName}-metadata`);
-    const metadata = metadataStr ? JSON.parse(metadataStr) : null;
+    const model = await tf.loadLayersModel(`localstorage://${modelName}`);
+    const metaStr = localStorage.getItem(`${modelName}_meta`);
+    
+    if (!metaStr) {
+        throw new Error("Model found but metadata is missing.");
+    }
+
+    const metadata: ModelMetadata = JSON.parse(metaStr);
+    console.log("Model loaded successfully with history:", metadata.trainingHistory.length, "epochs.");
     return { model, metadata };
-  } catch (error) {
-    // Returns null if model doesn't exist yet
+
+  } catch (e) {
+    console.log("No saved model found in local storage.");
     return null;
   }
-}
+};
 
-export async function deleteModelFromStorage(modelName: string) {
-  try {
-    // 1. Delete from IndexedDB (TensorFlow storage)
-    await tf.io.removeModel(`indexeddb://${modelName}`);
-  } catch (err) {
-    // Ignore error if model didn't exist in IndexedDB
-    console.warn('Model not found in IndexedDB to delete');
-  }
-
-  // 2. Delete metadata from LocalStorage
-  localStorage.removeItem(`${modelName}-metadata`);
-}
+export const deleteMLPModel = async (modelName: string = 'civil-status-mlp') => {
+    try {
+        await tf.io.removeModel(`localstorage://${modelName}`);
+    } catch (err) {
+        // Ignore
+    }
+    localStorage.removeItem(`tensorflowjs_models/${modelName}/info`);
+    localStorage.removeItem(`tensorflowjs_models/${modelName}/model_topology`);
+    localStorage.removeItem(`tensorflowjs_models/${modelName}/weight_specs`);
+    localStorage.removeItem(`tensorflowjs_models/${modelName}/weight_data`);
+    localStorage.removeItem(`${modelName}_meta`);
+    
+    console.log("Model and metadata deleted.");
+    return true;
+};

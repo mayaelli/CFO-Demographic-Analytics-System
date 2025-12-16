@@ -1,23 +1,21 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../context/authContext'
 import { 
   Users, TrendingUp, Calendar, ArrowUpRight, 
-  Table as TableIcon, UploadCloud, LineChart as LineChartIcon, Save, X, Edit2, Trash2, AlertCircle, CheckCircle2, FileUp, FileSpreadsheet 
+  Table as TableIcon, Save, X, Edit2, Trash2, AlertCircle
 } from 'lucide-react'
 
 // Hooks & Components
 import LoadingScreen from '../components/loadingScreen'
 import OriginCharts from '../components/charts/originCharts'
 import { useParseOriginData } from '../hooks/useParseOriginData'
-import { useIsMobile } from '../hooks/useIsMobile'
 import { COLUMN_ORDERS } from '../utils/columnOrders'
 
 // --- MOCK API SERVICES ---
 const getAllOriginData = async () => [] 
 const updateOriginData = async (year: number, data: any) => { console.log(year, data) }
 const deleteOriginData = async (year: number) => { console.log(year) }
-const uploadOriginData = async (file: File) => { return { message: "File uploaded" } }
 
 
 export const Route = createFileRoute('/originDataCategory')({
@@ -167,85 +165,17 @@ const OriginDataTable = () => {
   )
 }
 
-// --- SUB-COMPONENT: UPLOAD ---
-const OriginUpload = () => {
-  const [file, setFile] = useState<File | null>(null)
-  const [uploading, setUploading] = useState(false)
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const handleUpload = async () => {
-    if (!file) return
-    setUploading(true)
-    try {
-      await uploadOriginData(file)
-      setMessage({ type: 'success', text: 'Origin data uploaded successfully!' })
-      setFile(null)
-    } catch (e) {
-      setMessage({ type: 'error', text: 'Upload failed.' })
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  return (
-    <div className="bg-white/80 backdrop-blur-lg p-8 md:p-12 rounded-2xl shadow-xl border-2 border-amber-200 min-h-[500px] flex flex-col items-center justify-center text-center animate-in fade-in zoom-in-95 duration-300">
-      <div className="bg-amber-100 p-5 rounded-full mb-6 shadow-inner">
-        <UploadCloud size={48} className="text-amber-600" />
-      </div>
-      <h3 className="text-2xl font-bold text-amber-950 mb-3">Upload Regional Data</h3>
-      <p className="text-amber-800/60 max-w-md mb-8 text-sm md:text-base leading-relaxed">
-        Upload a CSV containing columns for Philippine Regions (e.g., NCR, Region I, CAR).
-      </p>
-      
-      <div className="w-full max-w-lg space-y-4">
-        <input type="file" accept=".csv" onChange={(e) => setFile(e.target.files?.[0] || null)} className="hidden" ref={fileInputRef} />
-        {!file ? (
-          <button onClick={() => fileInputRef.current?.click()} className="w-full border-2 border-dashed border-amber-300 hover:border-amber-500 hover:bg-amber-50 rounded-xl p-8 transition-all group flex flex-col items-center gap-3">
-             <FileUp className="text-amber-400 group-hover:text-amber-600" size={32} />
-             <span className="text-amber-700 font-semibold">Click to Select CSV</span>
-          </button>
-        ) : (
-          <div className="w-full bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3 overflow-hidden">
-              <FileSpreadsheet className="text-green-600 shrink-0" size={24} />
-              <span className="text-amber-900 font-medium truncate">{file.name}</span>
-            </div>
-            <button onClick={() => setFile(null)} className="text-amber-400 hover:text-red-500"><X size={20} /></button>
-          </div>
-        )}
-        <button onClick={handleUpload} disabled={!file || uploading} className={`w-full py-4 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-2 transition-all ${!file ? 'bg-gray-200 text-gray-400' : 'bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:from-amber-600'}`}>
-          {uploading ? 'Uploading...' : 'Upload Data'}
-        </button>
-        {message && (
-          <div className={`mt-4 p-4 rounded-xl flex items-center gap-3 text-left text-sm ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
-            {message.type === 'success' ? <CheckCircle2 size={18}/> : <AlertCircle size={18}/>} {message.text}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-const OriginForecasting = () => (
-  <div className="bg-white/80 p-8 rounded-2xl border-2 border-amber-200 shadow-xl min-h-[400px]">
-    <h3 className="text-xl font-bold text-amber-900 mb-4 flex items-center gap-2"><LineChartIcon className="text-amber-600" /> Regional Predictions</h3>
-    <p className="text-amber-800/60">Forecasting models for regional migration trends will appear here...</p>
-  </div>
-)
 
 // --- MAIN COMPONENT ---
 const TABS = [
   { id: 'charts', label: 'Charts', restricted: false },
   { id: 'table', label: 'Data Table', restricted: false },
-  { id: 'upload', label: 'Upload', restricted: true },
-  { id: 'forecasting', label: 'Forecasting', restricted: false },
 ]
 
 function OriginCategory() {
   const { isAuthenticated } = useAuth()
   const { chartData, regions, loading } = useParseOriginData()
-  const isMobile = useIsMobile()
   
   // State
   const [activeView, setActiveView] = useState('charts')
@@ -364,8 +294,6 @@ function OriginCategory() {
         <div className="xl:col-span-3 order-2 xl:order-1 animate-in fade-in slide-in-from-bottom-4 duration-500">
            {activeView === 'charts' && <OriginCharts />}
            {activeView === 'table' && <OriginDataTable />}
-           {activeView === 'upload' && <OriginUpload />}
-           {activeView === 'forecasting' && <OriginForecasting />}
         </div>
       </main>
     </div>

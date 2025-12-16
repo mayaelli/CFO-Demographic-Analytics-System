@@ -46,7 +46,6 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       timestamp: new Date(),
       read: false,
     };
-    // Add new ones to the TOP of the list
     setNotifications(prev => [newNote, ...prev]);
   };
 
