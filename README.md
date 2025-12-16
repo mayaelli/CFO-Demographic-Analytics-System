@@ -3,13 +3,13 @@
 > A comprehensive data visualization and forecasting system designed to analyze demographic profiles and predict civil status trends using Machine Learning.
 
 ![Project Status](https://img.shields.io/badge/Status-Completed-success)
-![Tech Stack](https://img.shields.io/badge/Stack-React_|_Tailwind_|_Recharts_|_TensorFlow.js-blue)
+![Tech Stack](https://img.shields.io/badge/Stack-React_|_Tailwind_|_Recharts_|_Firebase_|_TensorFlow.js-blue)
 
 ## 📖 Overview
 
 This project is an analytics dashboard built to visualize complex demographic data and forecast future trends. The system was designed to make historical data instantly understandable through intuitive visualizations, minimizing the need for complex explanations during presentations.
 
-It features interactive charts for demographic profiling and integrates a **Multi-Layer Perceptron (MLP)** neural network to predict future Civil Status distribution.
+It features interactive charts for demographic profiling, utilizes **Firebase** for real-time data management, and integrates a **Multi-Layer Perceptron (MLP)** neural network to predict future Civil Status distribution.
 
 ## ✨ Key Features
 
@@ -35,6 +35,7 @@ It features interactive charts for demographic profiling and integrates a **Mult
 - **Frontend Framework:** [React.js](https://reactjs.org/)
 - **Styling:** [Tailwind CSS](https://tailwindcss.com/)
 - **Visualization:** [Recharts](https://recharts.org/)
+- **Backend / Database:** [Firebase](https://firebase.google.com/) (Auth, Firestore, Hosting)
 - **Machine Learning:** [TensorFlow.js](https://www.tensorflow.org/js)
 - **Icons:** [Lucide React]
 
@@ -74,12 +75,16 @@ Follow these steps to run the project locally.
 
 ```text
 src/
-├── api/             # API services and fetchers
+├── api/             # API services (Firebase configuration & fetchers)
 ├── components/      # Reusable UI elements
 │   ├── charts/      # Recharts visualizations (Radar, Line, etc.)
 │   └── forecast/    # Prediction specific components
-├── context/         # React Context (Global state)
+├── context/         # React Context (Auth & Global state)
 ├── hooks/           # Custom React Hooks
 ├── routes/          # Application routing configuration
 └── utils/           # Helper functions and formatters
+
+🤝 Contributing
+This project was developed for ITD112 (Data Visualization Techniques) Course. If you have suggestions for optimization, feel free to open an issue.
+
 ```
